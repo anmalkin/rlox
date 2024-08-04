@@ -10,12 +10,17 @@ type Line = u16;
 #[derive(Debug)]
 pub enum OpCode {
     Constant(usize),
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Negate,
     Return,
 }
 
 #[derive(Debug)]
 pub struct Chunk {
-    code: Vec<OpCode>,
+    pub code: Vec<OpCode>,
     constants: Vec<Value>,
     lines: Vec<Line>,
 }
@@ -36,6 +41,10 @@ impl Chunk {
         self.code.push(op);
         self.lines.push(line);
         assert_eq!(self.code.len(), self.lines.len());
+    }
+
+    pub fn constant(&self, index: usize) -> Value {
+        self.constants[index]
     }
 
     pub fn add_constant(&mut self, constant: Value) -> usize {
@@ -61,3 +70,4 @@ impl Display for Chunk {
         Ok(())
     }
 }
+
