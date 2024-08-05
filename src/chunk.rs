@@ -1,11 +1,6 @@
-#![warn(clippy::pedantic, clippy::nursery)]
-#![allow(dead_code)]
-
 use std::fmt::Display;
 
-use crate::value::Value;
-
-type Line = u16;
+use crate::value::{Value, Line};
 
 #[derive(Debug)]
 pub enum OpCode {

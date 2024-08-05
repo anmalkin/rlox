@@ -1,3 +1,2 @@
-#![warn(clippy::pedantic, clippy::nursery)]
-
 pub type Value = f64;
+pub type Line = u16;
