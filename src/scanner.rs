@@ -47,7 +47,7 @@ pub enum TokenType {
     While,
 
     Error,
-    EOF,
+    Eof,
 }
 
 #[derive(Debug)]
@@ -143,29 +143,32 @@ impl<'a> Scanner<'a> {
                             self.line += 1;
                         }
                         if c == '"' {
-                            return self.create_token(TokenType::String)
+                            return self.create_token(TokenType::String);
                         }
                     }
-                    return self.error_token("Unterminated string")
+                    return self.error_token("Unterminated string");
                 }
                 '0'..='9' => {
                     while iter.peek().is_some_and(|c| c.is_ascii_digit() || *c == '.') {
                         let _ = iter.next();
                         self.current += 1;
                     }
-                    return self.create_token(TokenType::Number)
-                } 
+                    return self.create_token(TokenType::Number);
+                }
                 'a'..='z' | 'A'..='Z' | '_' => {
-                    while iter.peek().is_some_and(|c| c.is_alphanumeric() || *c == '_') {
+                    while iter
+                        .peek()
+                        .is_some_and(|c| c.is_alphanumeric() || *c == '_')
+                    {
                         let _ = iter.next();
                         self.current += 1;
                     }
-                    return self.create_token(TokenType::Identifier)
-                },
+                    return self.create_token(self.identifier_type());
+                }
                 _ => todo!(),
             }
         }
-        Token::new(TokenType::EOF, "", self.line)
+        Token::new(TokenType::Eof, "", self.line)
     }
 
     fn create_token(&self, token_type: TokenType) -> Token {
@@ -174,6 +177,45 @@ impl<'a> Scanner<'a> {
             &self.source[self.start..self.current],
             self.line,
         )
+    }
+
+    fn identifier_type(&self) -> TokenType {
+        let mut chars = self.source.chars().peekable();
+        match chars.next().expect("No character found in identifier.") {
+            'a' => self.check_keyword("nd", TokenType::And),
+            'c' => self.check_keyword("lass", TokenType::Class),
+            'e' => self.check_keyword("lse", TokenType::Else),
+            'i' => self.check_keyword("f", TokenType::If),
+            'n' => self.check_keyword("il", TokenType::Nil),
+            'o' => self.check_keyword("r", TokenType::Or),
+            'p' => self.check_keyword("rint", TokenType::Print),
+            'r' => self.check_keyword("eturn", TokenType::Return),
+            's' => self.check_keyword("uper", TokenType::Super),
+            'v' => self.check_keyword("ar", TokenType::Var),
+            'w' => self.check_keyword("hile", TokenType::While),
+            'f' => match chars.peek() {
+                Some('a') => self.check_keyword("alse", TokenType::False), 
+                Some('o') => self.check_keyword("or", TokenType::For),
+                Some('u') => self.check_keyword("un", TokenType::Fun),
+                _ => TokenType::Identifier,
+            }
+            't' => match chars.peek() {
+                Some('h') => self.check_keyword("his", TokenType::This), 
+                Some('r') => self.check_keyword("rue", TokenType::True),
+                _ => TokenType::Identifier,
+            }
+            _ => TokenType::Identifier,
+        }
+    }
+
+    fn check_keyword(&self, rest: &'a str, token_type: TokenType) -> TokenType {
+        let mut source = self.source[1..=rest.len()].chars();
+        for (i, a) in rest.chars().enumerate() {
+            if !source.nth(i).is_some_and(|c| c == a) {
+                return TokenType::Identifier;
+            }
+        }
+        token_type
     }
 
     fn error_token(&self, message: &'a str) -> Token {
