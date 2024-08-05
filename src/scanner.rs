@@ -87,8 +87,57 @@ impl<'a> Scanner<'a> {
 
     pub fn scan_token(&mut self) -> Token {
         self.start = self.current;
-        for _ in self.source.chars() {
+        self.source = &self.source[self.start..];
+        let mut iter = self.source.chars().peekable();
+        while let Some(c) = iter.next() {
+            self.current += 1;
+            match c {
+                '(' => return self.create_token(TokenType::LeftParen),
+                ')' => return self.create_token(TokenType::RightParen),
+                '{' => return self.create_token(TokenType::LeftBrace),
+                '}' => return self.create_token(TokenType::RightBrace),
+                ';' => return self.create_token(TokenType::Semicolon),
+                ',' => return self.create_token(TokenType::Comma),
+                '.' => return self.create_token(TokenType::Dot),
+                '-' => return self.create_token(TokenType::Minus),
+                '+' => return self.create_token(TokenType::Plus),
+                '/' => return self.create_token(TokenType::Slash),
+                '*' => return self.create_token(TokenType::Star),
+                '!' if iter.peek().is_some_and(|c| *c == '=') => {
+                    iter.next();
+                    self.current += 1;
+                    return self.create_token(TokenType::BangEqual)
+                }
+                '!' => return self.create_token(TokenType::Bang),
+                '=' if iter.peek().is_some_and(|c| *c == '=') => {
+                    iter.next();
+                    self.current += 1;
+                    return self.create_token(TokenType::EqualEqual)
+                }
+                '=' => return self.create_token(TokenType::Equal),
+                '<' if iter.peek().is_some_and(|c| *c == '=') => {
+                    iter.next();
+                    self.current += 1;
+                    return self.create_token(TokenType::LessEqual)
+                }
+                '<' => return self.create_token(TokenType::Less),
+                '>' if iter.peek().is_some_and(|c| *c == '=') => {
+                    iter.next();
+                    self.current += 1;
+                    return self.create_token(TokenType::GreaterEqual)
+                }
+                '>' => return self.create_token(TokenType::Greater),
+                _ => todo!(),
+            }
         }
         Token::new(TokenType::EOF, "", self.line)
+    }
+
+    fn create_token(&self, token_type: TokenType) -> Token {
+        Token::new(
+            token_type,
+            &self.source[self.start..self.current],
+            self.line,
+        )
     }
 }
