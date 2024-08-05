@@ -25,7 +25,7 @@ pub enum TokenType {
     Less,
     LessEqual,
     // Literals.
-    IdentIfier,
+    Identifier,
     String,
     Number,
     // Keywords.
@@ -92,6 +92,17 @@ impl<'a> Scanner<'a> {
         while let Some(c) = iter.next() {
             self.current += 1;
             match c {
+                '\t' | ' ' | '\r' => continue,
+                '\n' => {
+                    self.line += 1;
+                    continue;
+                }
+                '/' if iter.peek().is_some_and(|c| *c == '/') => {
+                    while iter.next().is_some_and(|c| c != '\n') {
+                        self.current += 1;
+                    }
+                    self.line += 1;
+                }
                 '(' => return self.create_token(TokenType::LeftParen),
                 ')' => return self.create_token(TokenType::RightParen),
                 '{' => return self.create_token(TokenType::LeftBrace),
@@ -106,27 +117,51 @@ impl<'a> Scanner<'a> {
                 '!' if iter.peek().is_some_and(|c| *c == '=') => {
                     iter.next();
                     self.current += 1;
-                    return self.create_token(TokenType::BangEqual)
+                    return self.create_token(TokenType::BangEqual);
                 }
                 '!' => return self.create_token(TokenType::Bang),
                 '=' if iter.peek().is_some_and(|c| *c == '=') => {
                     iter.next();
                     self.current += 1;
-                    return self.create_token(TokenType::EqualEqual)
+                    return self.create_token(TokenType::EqualEqual);
                 }
                 '=' => return self.create_token(TokenType::Equal),
                 '<' if iter.peek().is_some_and(|c| *c == '=') => {
-                    iter.next();
                     self.current += 1;
-                    return self.create_token(TokenType::LessEqual)
+                    return self.create_token(TokenType::LessEqual);
                 }
                 '<' => return self.create_token(TokenType::Less),
                 '>' if iter.peek().is_some_and(|c| *c == '=') => {
-                    iter.next();
                     self.current += 1;
-                    return self.create_token(TokenType::GreaterEqual)
+                    return self.create_token(TokenType::GreaterEqual);
                 }
                 '>' => return self.create_token(TokenType::Greater),
+                '"' => {
+                    for c in iter.by_ref() {
+                        self.current += 1;
+                        if c == '\n' {
+                            self.line += 1;
+                        }
+                        if c == '"' {
+                            return self.create_token(TokenType::String)
+                        }
+                    }
+                    return self.error_token("Unterminated string")
+                }
+                '0'..='9' => {
+                    while iter.peek().is_some_and(|c| c.is_ascii_digit() || *c == '.') {
+                        let _ = iter.next();
+                        self.current += 1;
+                    }
+                    return self.create_token(TokenType::Number)
+                } 
+                'a'..='z' | 'A'..='Z' | '_' => {
+                    while iter.peek().is_some_and(|c| c.is_alphanumeric() || *c == '_') {
+                        let _ = iter.next();
+                        self.current += 1;
+                    }
+                    return self.create_token(TokenType::Identifier)
+                },
                 _ => todo!(),
             }
         }
@@ -139,5 +174,9 @@ impl<'a> Scanner<'a> {
             &self.source[self.start..self.current],
             self.line,
         )
+    }
+
+    fn error_token(&self, message: &'a str) -> Token {
+        Token::new(TokenType::Error, message, self.line)
     }
 }
