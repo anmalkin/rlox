@@ -2,11 +2,11 @@
 #![allow(dead_code)]
 
 mod chunk;
+mod compiler;
+mod error;
+mod scanner;
 mod value;
 mod vm;
-mod error;
-mod compiler;
-mod scanner;
 
 use std::env;
 use std::io;
@@ -19,13 +19,13 @@ fn main() {
     let mut args = env::args();
     if args.len() == 1 {
         match repl() {
-            Ok(()) => {},
+            Ok(()) => {}
             Err(e) => println!("Error: {e}"),
         }
     } else if args.len() == 2 {
         args.next();
         match run_file(args.next().unwrap()) {
-            Ok(()) => {},
+            Ok(()) => {}
             Err(e) => println!("Error: {e}"),
         }
     } else {
@@ -35,16 +35,15 @@ fn main() {
 }
 
 fn repl() -> RloxResult {
-    let mut vm = VM::new();
     loop {
+        let mut vm = VM::new();
         let mut line = String::new();
-        print!("rlox> ");
-        let n = io::stdin()
-            .read_line(&mut line)?;
+        print!("rlox > ");
+        let n = io::stdin().read_line(&mut line)?;
         if n == 0 {
             break;
         }
-        vm.interpret(line)?;
+        vm.interpret(&line)?;
     }
     Ok(())
 }
@@ -52,5 +51,5 @@ fn repl() -> RloxResult {
 fn run_file(path: String) -> RloxResult {
     let mut vm = VM::new();
     let contents = std::fs::read_to_string(path)?;
-    vm.interpret(contents)
+    vm.interpret(&contents)
 }

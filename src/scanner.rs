@@ -1,8 +1,7 @@
-use crate::error::{Error, RloxResult};
 use crate::value::Line;
 
-#[derive(Debug)]
-pub enum TokenType {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TokenKind {
     // Single-character tokens.
     LeftParen,
     RightParen,
@@ -50,42 +49,47 @@ pub enum TokenType {
     Eof,
 }
 
-#[derive(Debug)]
-pub struct Token<'a> {
-    token_type: TokenType,
-    lexeme: &'a str,
-    line: Line,
+#[derive(Debug, Clone)]
+pub struct Token<'src> {
+    pub kind: TokenKind,
+    pub lexeme: &'src str,
+    pub line: Line,
 }
 
-impl<'a> Token<'a> {
-    fn new(token_type: TokenType, lexeme: &'a str, line: Line) -> Self {
+impl<'src> Token<'src> {
+    const fn new(token_type: TokenKind, lexeme: &'src str, line: Line) -> Self {
         Self {
-            token_type,
+            kind: token_type,
             lexeme,
             line,
         }
     }
 }
 
+impl<'src> Default for Token<'src> {
+    fn default() -> Self {
+        Self { kind: TokenKind::Error, lexeme: "", line: 0 }
+    }
+}
+
 #[derive(Debug)]
-pub struct Scanner<'a> {
-    source: &'a str,
+pub struct Scanner<'src> {
+    source: &'src str,
     start: usize,
     current: usize,
     line: Line,
 }
 
-impl<'a> Scanner<'a> {
-    pub fn new(source: &'a str) -> Self {
-        Self {
-            source,
-            start: 0,
-            current: 0,
-            line: 1,
-        }
+impl<'src> Scanner<'src> {
+    pub const fn new() -> Self {
+        Self { source: "", start: 0, current: 0, line: 1 }
     }
 
-    pub fn scan_token(&mut self) -> Token {
+    pub fn update_source(&mut self, source: &'src str) {
+        self.source = source;
+    }
+
+    pub fn scan_token(&mut self) -> Token<'src> {
         self.start = self.current;
         self.source = &self.source[self.start..];
         let mut iter = self.source.chars().peekable();
@@ -103,39 +107,39 @@ impl<'a> Scanner<'a> {
                     }
                     self.line += 1;
                 }
-                '(' => return self.create_token(TokenType::LeftParen),
-                ')' => return self.create_token(TokenType::RightParen),
-                '{' => return self.create_token(TokenType::LeftBrace),
-                '}' => return self.create_token(TokenType::RightBrace),
-                ';' => return self.create_token(TokenType::Semicolon),
-                ',' => return self.create_token(TokenType::Comma),
-                '.' => return self.create_token(TokenType::Dot),
-                '-' => return self.create_token(TokenType::Minus),
-                '+' => return self.create_token(TokenType::Plus),
-                '/' => return self.create_token(TokenType::Slash),
-                '*' => return self.create_token(TokenType::Star),
+                '(' => return self.create_token(TokenKind::LeftParen),
+                ')' => return self.create_token(TokenKind::RightParen),
+                '{' => return self.create_token(TokenKind::LeftBrace),
+                '}' => return self.create_token(TokenKind::RightBrace),
+                ';' => return self.create_token(TokenKind::Semicolon),
+                ',' => return self.create_token(TokenKind::Comma),
+                '.' => return self.create_token(TokenKind::Dot),
+                '-' => return self.create_token(TokenKind::Minus),
+                '+' => return self.create_token(TokenKind::Plus),
+                '/' => return self.create_token(TokenKind::Slash),
+                '*' => return self.create_token(TokenKind::Star),
                 '!' if iter.peek().is_some_and(|c| *c == '=') => {
                     iter.next();
                     self.current += 1;
-                    return self.create_token(TokenType::BangEqual);
+                    return self.create_token(TokenKind::BangEqual);
                 }
-                '!' => return self.create_token(TokenType::Bang),
+                '!' => return self.create_token(TokenKind::Bang),
                 '=' if iter.peek().is_some_and(|c| *c == '=') => {
                     iter.next();
                     self.current += 1;
-                    return self.create_token(TokenType::EqualEqual);
+                    return self.create_token(TokenKind::EqualEqual);
                 }
-                '=' => return self.create_token(TokenType::Equal),
+                '=' => return self.create_token(TokenKind::Equal),
                 '<' if iter.peek().is_some_and(|c| *c == '=') => {
                     self.current += 1;
-                    return self.create_token(TokenType::LessEqual);
+                    return self.create_token(TokenKind::LessEqual);
                 }
-                '<' => return self.create_token(TokenType::Less),
+                '<' => return self.create_token(TokenKind::Less),
                 '>' if iter.peek().is_some_and(|c| *c == '=') => {
                     self.current += 1;
-                    return self.create_token(TokenType::GreaterEqual);
+                    return self.create_token(TokenKind::GreaterEqual);
                 }
-                '>' => return self.create_token(TokenType::Greater),
+                '>' => return self.create_token(TokenKind::Greater),
                 '"' => {
                     for c in iter.by_ref() {
                         self.current += 1;
@@ -143,7 +147,7 @@ impl<'a> Scanner<'a> {
                             self.line += 1;
                         }
                         if c == '"' {
-                            return self.create_token(TokenType::String);
+                            return self.create_token(TokenKind::String);
                         }
                     }
                     return self.error_token("Unterminated string");
@@ -153,7 +157,7 @@ impl<'a> Scanner<'a> {
                         let _ = iter.next();
                         self.current += 1;
                     }
-                    return self.create_token(TokenType::Number);
+                    return self.create_token(TokenKind::Number);
                 }
                 'a'..='z' | 'A'..='Z' | '_' => {
                     while iter
@@ -165,13 +169,13 @@ impl<'a> Scanner<'a> {
                     }
                     return self.create_token(self.identifier_type());
                 }
-                _ => todo!(),
+                _ => return self.error_token("Invalid syntax"),
             }
         }
-        Token::new(TokenType::Eof, "", self.line)
+        Token::new(TokenKind::Eof, "", self.line)
     }
 
-    fn create_token(&self, token_type: TokenType) -> Token {
+    fn create_token(&self, token_type: TokenKind) -> Token<'src> {
         Token::new(
             token_type,
             &self.source[self.start..self.current],
@@ -179,46 +183,46 @@ impl<'a> Scanner<'a> {
         )
     }
 
-    fn identifier_type(&self) -> TokenType {
+    fn identifier_type(&self) -> TokenKind {
         let mut chars = self.source.chars().peekable();
         match chars.next().expect("No character found in identifier.") {
-            'a' => self.check_keyword("nd", TokenType::And),
-            'c' => self.check_keyword("lass", TokenType::Class),
-            'e' => self.check_keyword("lse", TokenType::Else),
-            'i' => self.check_keyword("f", TokenType::If),
-            'n' => self.check_keyword("il", TokenType::Nil),
-            'o' => self.check_keyword("r", TokenType::Or),
-            'p' => self.check_keyword("rint", TokenType::Print),
-            'r' => self.check_keyword("eturn", TokenType::Return),
-            's' => self.check_keyword("uper", TokenType::Super),
-            'v' => self.check_keyword("ar", TokenType::Var),
-            'w' => self.check_keyword("hile", TokenType::While),
+            'a' => self.check_keyword("nd", TokenKind::And),
+            'c' => self.check_keyword("lass", TokenKind::Class),
+            'e' => self.check_keyword("lse", TokenKind::Else),
+            'i' => self.check_keyword("f", TokenKind::If),
+            'n' => self.check_keyword("il", TokenKind::Nil),
+            'o' => self.check_keyword("r", TokenKind::Or),
+            'p' => self.check_keyword("rint", TokenKind::Print),
+            'r' => self.check_keyword("eturn", TokenKind::Return),
+            's' => self.check_keyword("uper", TokenKind::Super),
+            'v' => self.check_keyword("ar", TokenKind::Var),
+            'w' => self.check_keyword("hile", TokenKind::While),
             'f' => match chars.peek() {
-                Some('a') => self.check_keyword("alse", TokenType::False), 
-                Some('o') => self.check_keyword("or", TokenType::For),
-                Some('u') => self.check_keyword("un", TokenType::Fun),
-                _ => TokenType::Identifier,
+                Some('a') => self.check_keyword("alse", TokenKind::False), 
+                Some('o') => self.check_keyword("or", TokenKind::For),
+                Some('u') => self.check_keyword("un", TokenKind::Fun),
+                _ => TokenKind::Identifier,
             }
             't' => match chars.peek() {
-                Some('h') => self.check_keyword("his", TokenType::This), 
-                Some('r') => self.check_keyword("rue", TokenType::True),
-                _ => TokenType::Identifier,
+                Some('h') => self.check_keyword("his", TokenKind::This), 
+                Some('r') => self.check_keyword("rue", TokenKind::True),
+                _ => TokenKind::Identifier,
             }
-            _ => TokenType::Identifier,
+            _ => TokenKind::Identifier,
         }
     }
 
-    fn check_keyword(&self, rest: &'a str, token_type: TokenType) -> TokenType {
+    fn check_keyword(&self, rest: &'src str, token_type: TokenKind) -> TokenKind {
         let mut source = self.source[1..=rest.len()].chars();
         for (i, a) in rest.chars().enumerate() {
             if !source.nth(i).is_some_and(|c| c == a) {
-                return TokenType::Identifier;
+                return TokenKind::Identifier;
             }
         }
         token_type
     }
 
-    fn error_token(&self, message: &'a str) -> Token {
-        Token::new(TokenType::Error, message, self.line)
+    const fn error_token(&self, message: &'src str) -> Token<'src> {
+        Token::new(TokenKind::Error, message, self.line)
     }
 }

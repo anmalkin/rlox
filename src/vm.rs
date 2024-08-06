@@ -1,37 +1,38 @@
 use crate::chunk::{Chunk, OpCode};
+use crate::compiler::Compiler;
 use crate::error::{Error, RloxResult};
 use crate::value::Value;
-use crate::compiler::compile;
 
 #[derive(Debug)]
-pub struct VM<'a> {
-    chunk: Option<&'a Chunk>,
+pub struct VM<'src> {
+    chunk: Chunk,
     ip: usize,
     stack: Vec<Value>,
+    compiler: Compiler<'src>,
 }
 
-impl<'a> VM<'a> {
+impl<'src> VM<'src> {
     pub fn new() -> Self {
-        let chunk = None;
+        let chunk = Chunk::new();
         let ip = 0;
         let stack = Vec::with_capacity(256);
-        Self { chunk, ip, stack }
+        let compiler = Compiler::new();
+        Self {
+            chunk,
+            ip,
+            stack,
+            compiler,
+        }
     }
 
-    pub fn interpret(&mut self, source: String) -> RloxResult {
-        compile(source)
-    }
-
-    fn run(&mut self) -> RloxResult {
-        let chunk = self.chunk.ok_or(Error::Compiler)?;
-        for instruction in &chunk.code {
-            // for value in &self.stack {
-            //     println!("[{value:#?}]");
-            // }
+    pub fn interpret(&'src mut self, source: &'src str) -> RloxResult {
+        self.chunk = self.compiler.compile(source)?;
+        self.ip = 0;
+        for instruction in &self.chunk.code {
             self.ip += 1;
             match instruction {
                 OpCode::Constant(index) => {
-                    let constant = chunk.constant(*index);
+                    let constant = self.chunk.constant(*index);
                     self.stack.push(constant);
                 }
                 OpCode::Add => {
