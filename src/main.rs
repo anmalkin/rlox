@@ -10,6 +10,7 @@ mod vm;
 
 use std::env;
 use std::io;
+use std::io::Write;
 
 use vm::VM;
 
@@ -39,6 +40,7 @@ fn repl() -> RloxResult {
         let mut vm = VM::new();
         let mut line = String::new();
         print!("rlox > ");
+        let _ = std::io::stdout().flush();
         let n = io::stdin().read_line(&mut line)?;
         if n == 0 {
             break;

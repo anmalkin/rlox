@@ -26,7 +26,7 @@ impl<'src> VM<'src> {
     }
 
     pub fn interpret(&'src mut self, source: &'src str) -> RloxResult {
-        self.chunk = self.compiler.compile(source)?;
+        self.chunk = self.compiler.compile(source);
         self.ip = 0;
         for instruction in &self.chunk.code {
             self.ip += 1;

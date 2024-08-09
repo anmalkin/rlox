@@ -68,7 +68,11 @@ impl<'src> Token<'src> {
 
 impl<'src> Default for Token<'src> {
     fn default() -> Self {
-        Self { kind: TokenKind::Error, lexeme: "", line: 0 }
+        Self {
+            kind: TokenKind::Eof,
+            lexeme: "",
+            line: 0,
+        }
     }
 }
 
@@ -82,7 +86,12 @@ pub struct Scanner<'src> {
 
 impl<'src> Scanner<'src> {
     pub const fn new() -> Self {
-        Self { source: "", start: 0, current: 0, line: 1 }
+        Self {
+            source: "",
+            start: 0,
+            current: 0,
+            line: 1,
+        }
     }
 
     pub fn update_source(&mut self, source: &'src str) {
@@ -91,13 +100,17 @@ impl<'src> Scanner<'src> {
 
     pub fn scan_token(&mut self) -> Token<'src> {
         self.start = self.current;
-        self.source = &self.source[self.start..];
-        let mut iter = self.source.chars().peekable();
+        let source = &self.source[self.start..];
+        let mut iter = source.chars().peekable();
         while let Some(c) = iter.next() {
             self.current += 1;
             match c {
-                '\t' | ' ' | '\r' => continue,
+                '\t' | ' ' | '\r' => {
+                    self.start += 1;
+                    continue;
+                }
                 '\n' => {
+                    self.start += 1;
                     self.line += 1;
                     continue;
                 }
@@ -198,16 +211,16 @@ impl<'src> Scanner<'src> {
             'v' => self.check_keyword("ar", TokenKind::Var),
             'w' => self.check_keyword("hile", TokenKind::While),
             'f' => match chars.peek() {
-                Some('a') => self.check_keyword("alse", TokenKind::False), 
+                Some('a') => self.check_keyword("alse", TokenKind::False),
                 Some('o') => self.check_keyword("or", TokenKind::For),
                 Some('u') => self.check_keyword("un", TokenKind::Fun),
                 _ => TokenKind::Identifier,
-            }
+            },
             't' => match chars.peek() {
-                Some('h') => self.check_keyword("his", TokenKind::This), 
+                Some('h') => self.check_keyword("his", TokenKind::This),
                 Some('r') => self.check_keyword("rue", TokenKind::True),
                 _ => TokenKind::Identifier,
-            }
+            },
             _ => TokenKind::Identifier,
         }
     }

@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::value::{Value, Line};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum OpCode {
     Constant(usize),
     Add,
@@ -66,3 +66,15 @@ impl Display for Chunk {
     }
 }
 
+impl Default for Chunk {
+    fn default() -> Self {
+        let code = Vec::new();
+        let constants = Vec::new();
+        let lines = Vec::new();
+        Self {
+            code,
+            constants,
+            lines,
+        }
+    }
+}
