@@ -1,6 +1,6 @@
 use crate::chunk::{Chunk, OpCode};
 use crate::scanner::{Scanner, Token, TokenKind};
-use crate::value::Value;
+use crate::value::{Double, Value};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 enum Precedence {
@@ -42,6 +42,7 @@ enum FunctionRepr {
     Unary,
     Binary,
     Number,
+    Literal,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -76,7 +77,7 @@ impl<'src> Parser<'src> {
             ParseRule { kind: TokenKind::Semicolon, prefix: None, infix: None, precedence: Precedence::None, },
             ParseRule { kind: TokenKind::Slash, prefix: None, infix: Some(FunctionRepr::Binary), precedence: Precedence::Factor, },
             ParseRule { kind: TokenKind::Star, prefix: None, infix: Some(FunctionRepr::Binary), precedence: Precedence::Factor, },
-            ParseRule { kind: TokenKind::Bang, prefix: None, infix: None, precedence: Precedence::None, },
+            ParseRule { kind: TokenKind::Bang, prefix: Some(FunctionRepr::Unary), infix: None, precedence: Precedence::None, },
             ParseRule { kind: TokenKind::BangEqual, prefix: None, infix: None, precedence: Precedence::None, },
             ParseRule { kind: TokenKind::Equal, prefix: None, infix: None, precedence: Precedence::None, },
             ParseRule { kind: TokenKind::EqualEqual, prefix: None, infix: None, precedence: Precedence::None, },
@@ -90,17 +91,17 @@ impl<'src> Parser<'src> {
             ParseRule { kind: TokenKind::And, prefix: None, infix: None, precedence: Precedence::None, },
             ParseRule { kind: TokenKind::Class, prefix: None, infix: None, precedence: Precedence::None, },
             ParseRule { kind: TokenKind::Else, prefix: None, infix: None, precedence: Precedence::None, },
-            ParseRule { kind: TokenKind::False, prefix: None, infix: None, precedence: Precedence::None, },
+            ParseRule { kind: TokenKind::False, prefix: Some(FunctionRepr::Literal), infix: None, precedence: Precedence::None, },
             ParseRule { kind: TokenKind::For, prefix: None, infix: None, precedence: Precedence::None, },
             ParseRule { kind: TokenKind::Fun, prefix: None, infix: None, precedence: Precedence::None, },
             ParseRule { kind: TokenKind::If, prefix: None, infix: None, precedence: Precedence::None, },
-            ParseRule { kind: TokenKind::Nil, prefix: None, infix: None, precedence: Precedence::None, },
+            ParseRule { kind: TokenKind::Nil, prefix: Some(FunctionRepr::Literal), infix: None, precedence: Precedence::None, },
             ParseRule { kind: TokenKind::Or, prefix: None, infix: None, precedence: Precedence::None, },
             ParseRule { kind: TokenKind::Print, prefix: None, infix: None, precedence: Precedence::None, },
             ParseRule { kind: TokenKind::Return, prefix: None, infix: None, precedence: Precedence::None, },
             ParseRule { kind: TokenKind::Super, prefix: None, infix: None, precedence: Precedence::None, },
             ParseRule { kind: TokenKind::This, prefix: None, infix: None, precedence: Precedence::None, },
-            ParseRule { kind: TokenKind::True, prefix: None, infix: None, precedence: Precedence::None, },
+            ParseRule { kind: TokenKind::True, prefix: Some(FunctionRepr::Literal), infix: None, precedence: Precedence::None, },
             ParseRule { kind: TokenKind::Var, prefix: None, infix: None, precedence: Precedence::None, },
             ParseRule { kind: TokenKind::While, prefix: None, infix: None, precedence: Precedence::None, },
             ParseRule { kind: TokenKind::Error, prefix: None, infix: None, precedence: Precedence::None, },
@@ -200,13 +201,13 @@ impl<'src> Compiler<'src> {
     }
 
     fn number(&mut self) {
-        let value: Value = self
+        let value: Double = self
             .parser
             .previous
             .lexeme
             .parse()
             .expect("Lexeme cannot be parsed into value.");
-        self.emit_constant(value);
+        self.emit_constant(Value::Number(value));
     }
 
     fn grouping(&mut self) {
@@ -217,8 +218,10 @@ impl<'src> Compiler<'src> {
     fn unary(&mut self) {
         let operator_kind = self.parser.previous.kind;
         self.parse_precedence(Precedence::Unary);
-        if operator_kind == TokenKind::Minus {
-            self.emit_byte(OpCode::Negate);
+        match operator_kind {
+            TokenKind::Bang => self.emit_byte(OpCode::Not),
+            TokenKind::Minus => self.emit_byte(OpCode::Negate),
+            _ => (),
         }
     }
 
@@ -235,6 +238,15 @@ impl<'src> Compiler<'src> {
         }
     }
 
+    fn literal(&mut self) {
+        match self.parser.previous.kind {
+            TokenKind::False => self.emit_byte(OpCode::False),
+            TokenKind::Nil => self.emit_byte(OpCode::Nil),
+            TokenKind::True => self.emit_byte(OpCode::True),
+            _ => (),
+        }
+    }
+
     fn parse_precedence(&mut self, precedence: Precedence) {
         self.advance();
         let prefix_rule = self.parser.rule(self.parser.previous.kind).prefix;
@@ -243,7 +255,8 @@ impl<'src> Compiler<'src> {
             Some(FunctionRepr::Unary) => self.unary(),
             Some(FunctionRepr::Binary) => self.binary(),
             Some(FunctionRepr::Number) => self.number(),
-            None => self.error_at(&self.parser.previous, "Expect expression."),
+            Some(FunctionRepr::Literal) => self.literal(),
+            None => self.error_at(&self.parser.previous, "Expect prefix expression."),
         }
 
         while precedence <= self.parser.rule(self.parser.current.kind).precedence {
@@ -254,7 +267,7 @@ impl<'src> Compiler<'src> {
                 Some(FunctionRepr::Unary) => self.unary(),
                 Some(FunctionRepr::Binary) => self.binary(),
                 Some(FunctionRepr::Number) => self.number(),
-                None => self.error_at(&self.parser.previous, "Expect expression."),
+                _ => self.error_at(&self.parser.previous, "Expect infix expression."),
             }
         }
     }

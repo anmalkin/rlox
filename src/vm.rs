@@ -35,33 +35,64 @@ impl<'src> VM<'src> {
                     let constant = self.chunk.constant(*index);
                     self.stack.push(constant);
                 }
+                OpCode::Nil => self.stack.push(Value::Nil),
+                OpCode::True => self.stack.push(Value::Bool(true)),
+                OpCode::False => self.stack.push(Value::Bool(false)),
                 OpCode::Add => {
-                    let b = self.stack.pop().ok_or(Error::Compiler)?;
-                    let a = self.stack.pop().ok_or(Error::Compiler)?;
-                    self.stack.push(a + b);
+                    let Value::Number(b) = self.stack.pop().ok_or(Error::Compiler)? else {
+                        return Err(Error::Runtime);
+                    };
+                    let Value::Number(a) = self.stack.pop().ok_or(Error::Compiler)? else {
+                        return Err(Error::Runtime);
+                    };
+                    self.stack.push(Value::Number(a + b));
                 }
                 OpCode::Subtract => {
-                    let b = self.stack.pop().ok_or(Error::Compiler)?;
-                    let a = self.stack.pop().ok_or(Error::Compiler)?;
-                    self.stack.push(a - b);
+                    let Value::Number(b) = self.stack.pop().ok_or(Error::Compiler)? else {
+                        return Err(Error::Runtime);
+                    };
+                    let Value::Number(a) = self.stack.pop().ok_or(Error::Compiler)? else {
+                        return Err(Error::Runtime);
+                    };
+                    self.stack.push(Value::Number(a - b));
                 }
                 OpCode::Multiply => {
-                    let b = self.stack.pop().ok_or(Error::Compiler)?;
-                    let a = self.stack.pop().ok_or(Error::Compiler)?;
-                    self.stack.push(a * b);
+                    let Value::Number(b) = self.stack.pop().ok_or(Error::Compiler)? else {
+                        return Err(Error::Runtime);
+                    };
+                    let Value::Number(a) = self.stack.pop().ok_or(Error::Compiler)? else {
+                        return Err(Error::Runtime);
+                    };
+                    self.stack.push(Value::Number(a * b));
                 }
                 OpCode::Divide => {
-                    let b = self.stack.pop().ok_or(Error::Compiler)?;
-                    let a = self.stack.pop().ok_or(Error::Compiler)?;
-                    self.stack.push(a / b);
+                    let Value::Number(b) = self.stack.pop().ok_or(Error::Compiler)? else {
+                        return Err(Error::Runtime);
+                    };
+                    let Value::Number(a) = self.stack.pop().ok_or(Error::Compiler)? else {
+                        return Err(Error::Runtime);
+                    };
+                    self.stack.push(Value::Number(a / b));
+                }
+                OpCode::Not => {
+                    match self.stack.pop().ok_or(Error::Compiler)? {
+                        Value::Bool(false) | Value::Nil => self.stack.push(Value::Bool(true)),
+                        Value::Number(_) | Value::Bool(true) => self.stack.push(Value::Bool(false)),
+                    }
                 }
                 OpCode::Negate => {
-                    let arg = self.stack.pop().ok_or(Error::Compiler)?;
-                    self.stack.push(-arg);
+                    let Value::Number(a) = self.stack.pop().ok_or(Error::Compiler)? else {
+                        return Err(Error::Runtime);
+                    };
+                    self.stack.push(Value::Number(-a));
                 }
                 OpCode::Return => {
                     let ret = self.stack.pop().ok_or(Error::Compiler)?;
-                    println!("{ret}");
+                    match ret {
+                        Value::Bool(bool) => println!("{bool}"),
+                        Value::Nil => println!(),
+                        Value::Number(num) => println!("{num}"),
+                    }
                 }
             }
         }

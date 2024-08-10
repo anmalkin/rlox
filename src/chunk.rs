@@ -5,10 +5,14 @@ use crate::value::{Value, Line};
 #[derive(Debug, Clone, Copy)]
 pub enum OpCode {
     Constant(usize),
+    Nil,
+    True,
+    False,
     Add,
     Subtract,
     Multiply,
     Divide,
+    Not,
     Negate,
     Return,
 }

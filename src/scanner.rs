@@ -197,8 +197,9 @@ impl<'src> Scanner<'src> {
     }
 
     fn identifier_type(&self) -> TokenKind {
-        let mut chars = self.source.chars().peekable();
-        match chars.next().expect("No character found in identifier.") {
+        let source = &self.source[self.start..self.current];
+        let mut chars = source.chars().peekable();
+        match dbg!(chars.next()).expect("No character found in identifier.") {
             'a' => self.check_keyword("nd", TokenKind::And),
             'c' => self.check_keyword("lass", TokenKind::Class),
             'e' => self.check_keyword("lse", TokenKind::Else),
@@ -210,7 +211,7 @@ impl<'src> Scanner<'src> {
             's' => self.check_keyword("uper", TokenKind::Super),
             'v' => self.check_keyword("ar", TokenKind::Var),
             'w' => self.check_keyword("hile", TokenKind::While),
-            'f' => match chars.peek() {
+            'f' => match dbg!(chars.peek()) {
                 Some('a') => self.check_keyword("alse", TokenKind::False),
                 Some('o') => self.check_keyword("or", TokenKind::For),
                 Some('u') => self.check_keyword("un", TokenKind::Fun),
@@ -226,9 +227,9 @@ impl<'src> Scanner<'src> {
     }
 
     fn check_keyword(&self, rest: &'src str, token_type: TokenKind) -> TokenKind {
-        let mut source = self.source[1..=rest.len()].chars();
-        for (i, a) in rest.chars().enumerate() {
-            if !source.nth(i).is_some_and(|c| c == a) {
+        let source = &mut self.source[self.start+1..].chars();
+        for a in rest.chars() {
+            if !source.next().is_some_and(|c| c == a) {
                 return TokenKind::Identifier;
             }
         }
