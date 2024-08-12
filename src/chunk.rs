@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::value::{Value, Line};
+use crate::value::{Constant, Line};
 
 #[derive(Debug, Clone, Copy)]
 pub enum OpCode {
@@ -8,6 +8,9 @@ pub enum OpCode {
     Nil,
     True,
     False,
+    Equal,
+    Greater,
+    Less,
     Add,
     Subtract,
     Multiply,
@@ -18,13 +21,13 @@ pub enum OpCode {
 }
 
 #[derive(Debug)]
-pub struct Chunk {
+pub struct Chunk<'src> {
     pub code: Vec<OpCode>,
-    constants: Vec<Value>,
+    constants: Vec<Constant<'src>>,
     lines: Vec<Line>,
 }
 
-impl Chunk {
+impl<'src> Chunk<'src> {
     pub fn new() -> Self {
         let code = Vec::new();
         let constants = Vec::new();
@@ -42,35 +45,40 @@ impl Chunk {
         assert_eq!(self.code.len(), self.lines.len());
     }
 
-    pub fn constant(&self, index: usize) -> Value {
+    pub fn constant(&self, index: usize) -> Constant {
         self.constants[index]
     }
 
-    pub fn add_constant(&mut self, constant: Value) -> usize {
+    pub fn add_constant(&mut self, constant: Constant<'src>) -> usize {
         self.constants.push(constant);
         self.constants.len() - 1
     }
 }
 
-impl Display for Chunk {
+impl<'src> Display for Chunk<'src> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut curr_line = 0;
         for (i, op) in self.code.iter().enumerate() {
+            let mut output: String;
             let line = self.lines[i];
             if line == curr_line {
-                let output = format!("  | {op:?}");
-                writeln!(f, "{output}")?;
+                output = ("| ").to_string();
             } else {
                 curr_line = line;
-                let output = format!("{line} {op:?}");
-                writeln!(f, "{output}")?;
+                output = format!("{line} ");
             }
+            output.push_str(format!("{op:?}").as_str());
+            if let OpCode::Constant(index) = op {
+                let constant = self.constant(*index);
+                output.push_str(format!("    {constant:?}").as_str());
+            }
+            writeln!(f, "{output}")?;
         }
         Ok(())
     }
 }
 
-impl Default for Chunk {
+impl<'src> Default for Chunk<'src> {
     fn default() -> Self {
         let code = Vec::new();
         let constants = Vec::new();

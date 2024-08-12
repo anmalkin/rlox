@@ -1,11 +1,11 @@
 use crate::chunk::{Chunk, OpCode};
 use crate::compiler::Compiler;
 use crate::error::{Error, RloxResult};
-use crate::value::Value;
+use crate::value::{ObjectType, Value, Constant};
 
 #[derive(Debug)]
 pub struct VM<'src> {
-    chunk: Chunk,
+    chunk: Chunk<'src>,
     ip: usize,
     stack: Vec<Value>,
     compiler: Compiler<'src>,
@@ -25,6 +25,7 @@ impl<'src> VM<'src> {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     pub fn interpret(&'src mut self, source: &'src str) -> RloxResult {
         self.chunk = self.compiler.compile(source);
         self.ip = 0;
@@ -33,19 +34,46 @@ impl<'src> VM<'src> {
             match instruction {
                 OpCode::Constant(index) => {
                     let constant = self.chunk.constant(*index);
-                    self.stack.push(constant);
+                    match constant {
+                        Constant::String(str) => self.stack.push(Value::Object(ObjectType::String(str.to_owned()))),
+                        Constant::Number(num) => self.stack.push(Value::Number(num)),
+                    }
+                }
+                OpCode::Greater => {
+                    let b = self.stack.pop().ok_or(Error::Compiler)?;
+                    let a = self.stack.pop().ok_or(Error::Compiler)?;
+                    self.stack.push(Value::Bool(a > b));
+                } 
+                OpCode::Less => {
+                    let b = self.stack.pop().ok_or(Error::Compiler)?;
+                    let a = self.stack.pop().ok_or(Error::Compiler)?;
+                    self.stack.push(Value::Bool(a < b));
                 }
                 OpCode::Nil => self.stack.push(Value::Nil),
                 OpCode::True => self.stack.push(Value::Bool(true)),
                 OpCode::False => self.stack.push(Value::Bool(false)),
+                OpCode::Equal => {
+                    let b = self.stack.pop().ok_or(Error::Compiler)?;
+                    let a = self.stack.pop().ok_or(Error::Compiler)?;
+                    self.stack.push(Value::Bool(a == b));
+                }
                 OpCode::Add => {
-                    let Value::Number(b) = self.stack.pop().ok_or(Error::Compiler)? else {
-                        return Err(Error::Runtime);
-                    };
-                    let Value::Number(a) = self.stack.pop().ok_or(Error::Compiler)? else {
-                        return Err(Error::Runtime);
-                    };
-                    self.stack.push(Value::Number(a + b));
+                    let b = self.stack.pop().ok_or(Error::Compiler)?;
+                    let a = self.stack.pop().ok_or(Error::Compiler)?;
+                    if let Value::Number(b) = b {
+                        if let Value::Number(a) = a {
+                            self.stack.push(Value::Number(a + b));
+                        } else {
+                            return Err(Error::Runtime)
+                        }
+                    }
+                    if let Value::Object(ObjectType::String(b)) = b {
+                        if let Value::Object(ObjectType::String(a)) = a {
+                            self.stack.push(Value::Object(ObjectType::String(a + &b)));
+                        } else {
+                            return Err(Error::Runtime)
+                        }
+                    }
                 }
                 OpCode::Subtract => {
                     let Value::Number(b) = self.stack.pop().ok_or(Error::Compiler)? else {
@@ -77,7 +105,7 @@ impl<'src> VM<'src> {
                 OpCode::Not => {
                     match self.stack.pop().ok_or(Error::Compiler)? {
                         Value::Bool(false) | Value::Nil => self.stack.push(Value::Bool(true)),
-                        Value::Number(_) | Value::Bool(true) => self.stack.push(Value::Bool(false)),
+                        _ => self.stack.push(Value::Bool(false)),
                     }
                 }
                 OpCode::Negate => {
@@ -92,6 +120,7 @@ impl<'src> VM<'src> {
                         Value::Bool(bool) => println!("{bool}"),
                         Value::Nil => println!(),
                         Value::Number(num) => println!("{num}"),
+                        Value::Object(ObjectType::String(str)) => println!("{str}"),
                     }
                 }
             }

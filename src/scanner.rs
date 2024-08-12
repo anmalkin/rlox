@@ -199,7 +199,7 @@ impl<'src> Scanner<'src> {
     fn identifier_type(&self) -> TokenKind {
         let source = &self.source[self.start..self.current];
         let mut chars = source.chars().peekable();
-        match dbg!(chars.next()).expect("No character found in identifier.") {
+        match chars.next().expect("No character found in identifier.") {
             'a' => self.check_keyword("nd", TokenKind::And),
             'c' => self.check_keyword("lass", TokenKind::Class),
             'e' => self.check_keyword("lse", TokenKind::Else),

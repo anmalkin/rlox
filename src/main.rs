@@ -1,5 +1,5 @@
 #![warn(clippy::pedantic, clippy::nursery)]
-#![allow(dead_code)]
+// #![allow(dead_code)]
 
 mod chunk;
 mod compiler;
