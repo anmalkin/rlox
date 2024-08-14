@@ -8,6 +8,9 @@ pub enum OpCode {
     Nil,
     True,
     False,
+    Pop,
+    GetGlobal(usize),
+    DefineGlobal(usize),
     Equal,
     Greater,
     Less,
@@ -17,6 +20,7 @@ pub enum OpCode {
     Divide,
     Not,
     Negate,
+    Print,
     Return,
 }
 
