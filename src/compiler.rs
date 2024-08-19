@@ -337,16 +337,18 @@ impl<'src> Compiler<'src> {
         }
     }
 
-    fn named_variable(&mut self, name: &'src str) {
-        let arg = self.identifier_constant(name);
-        self.emit_byte(OpCode::GetGlobal(arg));
-    }
-
-    fn variable(&mut self) {
-        self.named_variable(self.parser.previous.lexeme);
+    fn variable(&mut self, can_assign: bool) {
+        let arg = self.identifier_constant(self.parser.previous.lexeme);
+        if can_assign && self.match_token(TokenKind::Equal) {
+            self.expression();
+            self.emit_byte(OpCode::SetGlobal(arg));
+        } else {
+            self.emit_byte(OpCode::GetGlobal(arg));
+        }
     }
 
     fn parse_precedence(&mut self, precedence: Precedence) {
+        let can_assign = precedence <= Precedence::Assignment;
         self.advance();
         let prefix_rule = Parser::rule(self.parser.previous.kind).prefix;
         match prefix_rule {
@@ -356,7 +358,7 @@ impl<'src> Compiler<'src> {
             Some(FunctionRepr::Number) => self.number(),
             Some(FunctionRepr::Literal) => self.literal(),
             Some(FunctionRepr::String) => self.string(),
-            Some(FunctionRepr::Variable) => self.variable(),
+            Some(FunctionRepr::Variable) => self.variable(can_assign),
             None => self.error_at(&self.parser.previous, "Expect prefix expression."),
         }
 
@@ -370,6 +372,10 @@ impl<'src> Compiler<'src> {
                 Some(FunctionRepr::Number) => self.number(),
                 _ => self.error_at(&self.parser.previous, "Expect infix expression."),
             }
+        }
+
+        if can_assign && self.match_token(TokenKind::Equal) {
+            self.error_at(&self.parser.previous, "Invalid assignment target.");
         }
     }
 

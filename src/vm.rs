@@ -64,7 +64,6 @@ impl<'src> VM<'src> {
                 }
                 OpCode::GetGlobal(n) => {
                     if let Constant::String(name) = self.chunk.constant(*n) {
-                        println!("Requesting contents of variable {name}");
                         let value = self
                             .globals
                             .get(name)
@@ -75,13 +74,25 @@ impl<'src> VM<'src> {
                 }
                 OpCode::DefineGlobal(n) => {
                     if let Constant::String(name) = self.chunk.constant(*n) {
-                        println!("Defining global variable {name}");
                         let value = self.stack.last().ok_or(Error::Compiler)?;
                         self.globals.insert(name.to_string(), value.to_owned());
                     } else {
                         return Err(Error::Compiler);
                     }
                     let _ = self.stack.pop();
+                }
+                OpCode::SetGlobal(n) => {
+                    if let Constant::String(name) = self.chunk.constant(*n) {
+                        let value = self.stack.last().ok_or(Error::Compiler)?;
+                        if self.globals.contains_key(name) {
+                            self.globals.insert(name.to_string(), value.to_owned());
+                        } else {
+                            println!("Undefined variable {name}");
+                            return Err(Error::Runtime);
+                        }
+                    } else {
+                        return Err(Error::Compiler);
+                    }
                 }
                 OpCode::Equal => {
                     let b = self.stack.pop().ok_or(Error::Compiler)?;

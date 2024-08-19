@@ -15,6 +15,7 @@ use vm::VM;
 use crate::error::RloxResult;
 
 fn main() {
+    // TODO: Add back REPL support
     let mut args = env::args();
     if args.len() == 2 {
         args.next();
