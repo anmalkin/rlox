@@ -64,13 +64,18 @@ impl<'src> VM<'src> {
                 }
                 OpCode::GetGlobal(n) => {
                     if let Constant::String(name) = self.chunk.constant(*n) {
-                        let value = self.globals.get(name).expect("Could not find name in globals.");
+                        println!("Requesting contents of variable {name}");
+                        let value = self
+                            .globals
+                            .get(name)
+                            .expect("Could not find name in globals.");
                         // FIXME: It is finally time to deal with pointers...
                         self.stack.push(value.to_owned());
                     }
                 }
                 OpCode::DefineGlobal(n) => {
                     if let Constant::String(name) = self.chunk.constant(*n) {
+                        println!("Defining global variable {name}");
                         let value = self.stack.last().ok_or(Error::Compiler)?;
                         self.globals.insert(name.to_string(), value.to_owned());
                     } else {

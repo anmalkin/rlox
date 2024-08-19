@@ -9,8 +9,6 @@ mod value;
 mod vm;
 
 use std::env;
-use std::io;
-use std::io::Write;
 
 use vm::VM;
 
@@ -18,12 +16,7 @@ use crate::error::RloxResult;
 
 fn main() {
     let mut args = env::args();
-    if args.len() == 1 {
-        match repl() {
-            Ok(()) => {}
-            Err(e) => println!("Error: {e}"),
-        }
-    } else if args.len() == 2 {
+    if args.len() == 2 {
         args.next();
         match run_file(args.next().unwrap()) {
             Ok(()) => {}
@@ -33,21 +26,6 @@ fn main() {
         eprintln!("Usage: rlox [path]");
         std::process::exit(64);
     }
-}
-
-fn repl() -> RloxResult {
-    loop {
-        let mut vm = VM::new();
-        let mut line = String::new();
-        print!("rlox > ");
-        let _ = std::io::stdout().flush();
-        let n = io::stdin().read_line(&mut line)?;
-        if n == 0 {
-            break;
-        }
-        vm.interpret(&line)?;
-    }
-    Ok(())
 }
 
 fn run_file(path: String) -> RloxResult {
